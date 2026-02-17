@@ -2,100 +2,23 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>IA Stable Upscaler</title>
-    <script src="https://unpkg.com/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
-    <script src="https://unpkg.com/upscaler@0.14.0/dist/browser/umd/upscaler.min.js"></script>
-    
-    <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #fafafa; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 12px; shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        #status { padding: 10px; margin: 10px; border-radius: 5px; background: #eee; font-weight: bold; }
-        .preview { max-width: 100%; margin-top: 10px; border: 1px solid #ddd; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: none; }
-    </style>
+    <title>Améliorateur d'image IA</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
 </head>
 <body>
 
-<div class="container">
-    <h2>Améliorateur IA</h2>
-    
-    <div id="status">⏳ Initialisation de l'IA...</div>
-    
-    <input type="file" id="fileInput" accept="image/*">
-    <br>
-    <button id="upscaleBtn">🚀 Améliorer la qualité</button>
+    <h1>Amélioration d'image avec IA</h1>
 
-    <div>
-        <canvas id="canvas" style="display:none;"></canvas>
-        <p>Aperçu :</p>
-        <img id="outputImg" class="preview">
-    </div>
-</div>
+    <input type="file" id="upload" accept="image/*">
+    <br><br>
 
-<script>
-    let engine = null;
+    <img id="preview" />
+    <canvas id="outputCanvas"></canvas>
 
-    async function startApp() {
-        const statusDiv = document.getElementById('status');
-        
-        // 1. On vérifie si les scripts sont chargés
-        if (typeof Upscaler === 'undefined') {
-            statusDiv.innerText = "⏳ Téléchargement des moteurs (5Mo)...";
-            setTimeout(startApp, 2000); // On réessaie
-            return;
-        }
+    <br><br>
+    <button onclick="enhanceImage()">Améliorer la qualité</button>
 
-        try {
-            // 2. On initialise avec un modèle très léger
-            engine = new Upscaler({
-                model: {
-                    path: 'https://cdn.jsdelivr.net/npm/@upscalerjs/default-model@1.0.0/models/unoptimized/pixel-upsampler/m1.json',
-                    scale: 2
-                }
-            });
-            
-            statusDiv.innerText = "✅ IA Prête !";
-            statusDiv.style.color = "green";
-            console.log("UpscalerJS est prêt.");
-        } catch (error) {
-            console.error(error);
-            statusDiv.innerText = "⚠️ Erreur d'initialisation. Essayez Chrome ou Firefox.";
-        }
-    }
-
-    // Lancement
-    startApp();
-
-    // Logique du bouton (identique)
-    const fileInput = document.getElementById('fileInput');
-    const imgView = document.getElementById('imgView');
-    const upscaleBtn = document.getElementById('upscaleBtn');
-
-    fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                imgView.src = ev.target.result;
-                upscaleBtn.style.display = "inline-block";
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    upscaleBtn.onclick = async () => {
-        document.getElementById('status').innerText = "⏳ Calcul IA en cours...";
-        upscaleBtn.disabled = true;
-        try {
-            const finalImg = await engine.upscale(imgView.src);
-            imgView.src = finalImg;
-            document.getElementById('status').innerText = "✨ Terminé !";
-        } catch (err) {
-            document.getElementById('status').innerText = "❌ Image trop complexe.";
-        } finally {
-            upscaleBtn.disabled = false;
-        }
-    };
-</script>
+    <script src="script.js"></script>
 </body>
 </html>
