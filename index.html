@@ -2,106 +2,88 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>IA Upscaler - Version Stable</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/upscaler@0.14.0/dist/browser/umd/upscaler.min.js"></script>
+    <title>IA Stable Upscaler</title>
+    <script src="https://unpkg.com/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <script src="https://unpkg.com/upscaler@0.14.0/dist/browser/umd/upscaler.min.js"></script>
     
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f2f5; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 600px; width: 100%; text-align: center; }
-        .drop-zone { border: 2px dashed #ccc; padding: 30px; cursor: pointer; margin-bottom: 20px; background: #fafafa; }
-        .drop-zone:hover { border-color: #007bff; background: #eef6ff; }
-        img { max-width: 100%; height: auto; margin-top: 10px; border: 1px solid #ddd; }
-        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { margin-top: 15px; font-weight: bold; color: #555; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #fafafa; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 12px; shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        #status { padding: 10px; margin: 10px; border-radius: 5px; background: #eee; font-weight: bold; }
+        .preview { max-width: 100%; margin-top: 10px; border: 1px solid #ddd; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: none; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>🚀 IA Image Quality Booster</h2>
+<div class="container">
+    <h2>Améliorateur IA</h2>
     
-    <div class="drop-zone" id="dropZone">
-        <strong>Cliquez ici pour choisir une image</strong>
-        <input type="file" id="fileInput" style="display:none" accept="image/*">
-    </div>
-
-    <div id="status">Chargement de l'IA...</div>
+    <div id="status">⏳ Initialisation de l'IA...</div>
     
-    <button id="upscaleBtn" style="display:none">Améliorer l'image</button>
+    <input type="file" id="fileInput" accept="image/*">
+    <br>
+    <button id="upscaleBtn">🚀 Améliorer la qualité</button>
 
-    <div style="margin-top:20px">
-        <p id="labelOriginal" style="display:none">Original :</p>
-        <img id="inputImg">
-        <p id="labelResult" style="display:none">Résultat amélioré :</p>
-        <img id="outputImg">
+    <div>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <p>Aperçu :</p>
+        <img id="outputImg" class="preview">
     </div>
 </div>
 
 <script>
-    let upscaler = null;
+    let upscaler;
 
-    // Fonction pour forcer l'initialisation
-    async function initIA() {
-        const status = document.getElementById('status');
-        try {
-            // On vérifie si la bibliothèque est chargée dans la fenêtre
-            if (typeof Upscaler !== 'undefined') {
+    // Fonction de vérification immédiate
+    function checkLibraries() {
+        if (typeof tf !== 'undefined' && typeof Upscaler !== 'undefined') {
+            try {
                 upscaler = new Upscaler();
-                status.innerText = "✅ IA Prête (GitHub Mode)";
-                status.style.color = "green";
-            } else {
-                status.innerText = "⏳ Chargement des composants... (Vérifiez votre connexion)";
-                // On réessaie dans 2 secondes si ce n'est pas prêt
-                setTimeout(initIA, 2000);
+                document.getElementById('status').innerText = "✅ IA Prête";
+                document.getElementById('status').style.background = "#d4edda";
+            } catch (e) {
+                document.getElementById('status').innerText = "❌ Erreur CPU/GPU";
             }
-        } catch (e) {
-            status.innerText = "❌ Erreur critique : " + e.message;
+        } else {
+            // Re-tente toutes les secondes si les scripts ne sont pas chargés
+            setTimeout(checkLibraries, 1000);
         }
     }
 
-    // Lancer l'initialisation au chargement
-    window.addEventListener('load', initIA);
+    checkLibraries();
 
     const fileInput = document.getElementById('fileInput');
-    const dropZone = document.getElementById('dropZone');
     const upscaleBtn = document.getElementById('upscaleBtn');
-    const inputImg = document.getElementById('inputImg');
     const outputImg = document.getElementById('outputImg');
     const status = document.getElementById('status');
-
-    dropZone.onclick = () => fileInput.click();
 
     fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
-                inputImg.src = event.target.result;
+                outputImg.src = event.target.result;
                 upscaleBtn.style.display = 'inline-block';
-                status.innerText = "Image chargée. Cliquez sur le bouton !";
             };
             reader.readAsDataURL(file);
         }
     };
 
     upscaleBtn.onclick = async () => {
-        if (!upscaler) {
-            alert("L'IA charge encore les modèles mathématiques. Attendez 5 secondes.");
-            return;
-        }
-        
+        status.innerText = "⏳ Traitement en cours... Patientez.";
         upscaleBtn.disabled = true;
-        status.innerText = "⏳ Travail en cours... (Ne fermez pas la page)";
 
         try {
-            // On utilise le modèle par défaut (x2)
-            const result = await upscaler.upscale(inputImg.src);
+            // Utilisation d'un patch pour éviter les erreurs de mémoire
+            const result = await upscaler.upscale(outputImg.src, {
+                patchSize: 64, // Découpe l'image en petits morceaux pour ne pas faire planter le navigateur
+                padding: 2
+            });
             outputImg.src = result;
             status.innerText = "✨ Terminé !";
         } catch (err) {
-            status.innerText = "❌ Erreur de mémoire : l'image est peut-être trop grande.";
+            status.innerText = "❌ Trop lourd pour votre navigateur.";
             console.error(err);
         } finally {
             upscaleBtn.disabled = false;
