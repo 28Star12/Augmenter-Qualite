@@ -33,58 +33,65 @@
 </div>
 
 <script>
-    let upscaler;
+    let engine = null;
 
-    // Fonction de vérification immédiate
-    function checkLibraries() {
-        if (typeof tf !== 'undefined' && typeof Upscaler !== 'undefined') {
-            try {
-                upscaler = new Upscaler();
-                document.getElementById('status').innerText = "✅ IA Prête";
-                document.getElementById('status').style.background = "#d4edda";
-            } catch (e) {
-                document.getElementById('status').innerText = "❌ Erreur CPU/GPU";
-            }
-        } else {
-            // Re-tente toutes les secondes si les scripts ne sont pas chargés
-            setTimeout(checkLibraries, 1000);
+    async function startApp() {
+        const statusDiv = document.getElementById('status');
+        
+        // 1. On vérifie si les scripts sont chargés
+        if (typeof Upscaler === 'undefined') {
+            statusDiv.innerText = "⏳ Téléchargement des moteurs (5Mo)...";
+            setTimeout(startApp, 2000); // On réessaie
+            return;
+        }
+
+        try {
+            // 2. On initialise avec un modèle très léger
+            engine = new Upscaler({
+                model: {
+                    path: 'https://cdn.jsdelivr.net/npm/@upscalerjs/default-model@1.0.0/models/unoptimized/pixel-upsampler/m1.json',
+                    scale: 2
+                }
+            });
+            
+            statusDiv.innerText = "✅ IA Prête !";
+            statusDiv.style.color = "green";
+            console.log("UpscalerJS est prêt.");
+        } catch (error) {
+            console.error(error);
+            statusDiv.innerText = "⚠️ Erreur d'initialisation. Essayez Chrome ou Firefox.";
         }
     }
 
-    checkLibraries();
+    // Lancement
+    startApp();
 
+    // Logique du bouton (identique)
     const fileInput = document.getElementById('fileInput');
+    const imgView = document.getElementById('imgView');
     const upscaleBtn = document.getElementById('upscaleBtn');
-    const outputImg = document.getElementById('outputImg');
-    const status = document.getElementById('status');
 
     fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (event) => {
-                outputImg.src = event.target.result;
-                upscaleBtn.style.display = 'inline-block';
+            reader.onload = (ev) => {
+                imgView.src = ev.target.result;
+                upscaleBtn.style.display = "inline-block";
             };
             reader.readAsDataURL(file);
         }
     };
 
     upscaleBtn.onclick = async () => {
-        status.innerText = "⏳ Traitement en cours... Patientez.";
+        document.getElementById('status').innerText = "⏳ Calcul IA en cours...";
         upscaleBtn.disabled = true;
-
         try {
-            // Utilisation d'un patch pour éviter les erreurs de mémoire
-            const result = await upscaler.upscale(outputImg.src, {
-                patchSize: 64, // Découpe l'image en petits morceaux pour ne pas faire planter le navigateur
-                padding: 2
-            });
-            outputImg.src = result;
-            status.innerText = "✨ Terminé !";
+            const finalImg = await engine.upscale(imgView.src);
+            imgView.src = finalImg;
+            document.getElementById('status').innerText = "✨ Terminé !";
         } catch (err) {
-            status.innerText = "❌ Trop lourd pour votre navigateur.";
-            console.error(err);
+            document.getElementById('status').innerText = "❌ Image trop complexe.";
         } finally {
             upscaleBtn.disabled = false;
         }
