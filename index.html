@@ -45,47 +45,62 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/upscaler@0.14.0/dist/browser/umd/upscaler.min.js"></script>
+
 <script>
-    // Initialisation de l'IA
-    const upscaler = new Upscaler();
-    
-    const fileInput = document.getElementById('fileInput');
-    const dropZone = document.getElementById('dropZone');
-    const upscaleBtn = document.getElementById('upscaleBtn');
-    const inputImg = document.getElementById('inputImg');
-    const outputImg = document.getElementById('outputImg');
-    const loader = document.getElementById('loader');
-
-    // Gestion de l'upload
-    dropZone.onclick = () => fileInput.click();
-    
-    fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                inputImg.src = event.target.result;
-                upscaleBtn.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    // Fonction principale d'amélioration
-    upscaleBtn.onclick = async () => {
-        upscaleBtn.disabled = true;
-        loader.style.display = 'block';
-        outputImg.src = '';
-
+    // Correction de l'initialisation
+    // On attend que la page soit totalement prête
+    window.onload = function() {
         try {
-            // L'IA traite l'image
-            const upscaledImage = await upscaler.upscale(inputImg.src);
-            outputImg.src = upscaledImage;
-        } catch (err) {
-            alert("Erreur lors du traitement : " + err.message);
-        } finally {
-            upscaleBtn.disabled = false;
-            loader.style.display = 'none';
+            // On vérifie si la bibliothèque est bien chargée
+            if (typeof Upscaler === 'undefined') {
+                throw new Error("La bibliothèque Upscaler n'est pas chargée. Vérifiez votre connexion.");
+            }
+
+            const upscaler = new Upscaler();
+            console.log("IA Initialisée avec succès !");
+
+            const fileInput = document.getElementById('fileInput');
+            const upscaleBtn = document.getElementById('upscaleBtn');
+            const inputImg = document.getElementById('inputImg');
+            const outputImg = document.getElementById('outputImg');
+            const loader = document.getElementById('loader');
+
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        inputImg.src = event.target.result;
+                        upscaleBtn.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            upscaleBtn.onclick = async () => {
+                upscaleBtn.disabled = true;
+                loader.style.display = 'block';
+                loader.innerText = "L'IA analyse les pixels...";
+
+                try {
+                    // On demande explicitement le modèle par défaut
+                    const upscaledImage = await upscaler.upscale(inputImg.src);
+                    outputImg.src = upscaledImage;
+                    loader.innerText = "Terminé !";
+                } catch (err) {
+                    console.error(err);
+                    alert("Erreur IA : " + err.message);
+                    loader.innerText = "Erreur de traitement.";
+                } finally {
+                    upscaleBtn.disabled = false;
+                }
+            };
+        } catch (e) {
+            console.error("Erreur au démarrage :", e);
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('loader').innerText = "Erreur d'initialisation : " + e.message;
         }
     };
 </script>
