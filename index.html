@@ -2,142 +2,93 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Améliorateur d'Image IA (Upscaler)</title>
+    <title>IA Image Upscaler - GitHub Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/upscaler@latest/dist/browser/umd/upscaler.min.js"></script>
+    
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            text-align: center;
-            background-color: #f4f7f6;
-            color: #333;
-            padding: 20px;
-        }
-        h1 { color: #2c3e50; }
-        .upload-section { margin: 20px 0; }
-        input[type="file"] { margin-bottom: 10px; }
-        button {
-            padding: 12px 24px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        button:hover { background-color: #2980b9; }
-        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        .container {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-top: 30px;
-        }
-        .image-box {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            width: 400px;
-            min-height: 300px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        img {
-            max-width: 100%;
-            border-radius: 4px;
-            display: none; /* Caché tant qu'il n'y a pas d'image */
-        }
-        #status { font-weight: bold; color: #e67e22; margin-top: 15px; }
+        :root { --primary: #6e5494; --bg: #f6f8fa; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 40px; }
+        .card { background: white; border: 1px solid #d1d5da; border-radius: 6px; padding: 24px; width: 100%; max-width: 800px; box-shadow: 0 8px 24px rgba(149,157,165,0.2); }
+        .drop-zone { border: 2px dashed #0366d6; border-radius: 6px; padding: 40px; text-align: center; margin-bottom: 20px; cursor: pointer; transition: 0.3s; }
+        .drop-zone:hover { background: #f1f8ff; }
+        img { max-width: 100%; margin-top: 10px; border-radius: 4px; border: 1px solid #eee; }
+        button { background-color: #2ea44f; color: white; border: 1px solid rgba(27,31,35,0.15); border-radius: 6px; padding: 10px 20px; font-weight: 600; cursor: pointer; width: 100%; font-size: 16px; }
+        button:disabled { background-color: #94d3a2; cursor: wait; }
+        .result-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        #loader { display: none; color: #0366d6; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>✨ Améliorateur d'Image IA ✨</h1>
-    <p>Sélectionnez une image floue ou de basse résolution pour que l'IA augmente sa qualité.</p>
-
-    <div class="upload-section">
-        <input type="file" id="imageInput" accept="image/png, image/jpeg, image/jpg">
-        <br>
-        <button id="upscaleBtn" disabled>Améliorer l'image avec l'IA</button>
-        <p id="status"></p>
+<div class="card">
+    <h2>🚀 IA Image Upscaler (Local)</h2>
+    <p>Cette IA augmente la résolution de l'image (x2) directement dans votre navigateur.</p>
+    
+    <div class="drop-zone" id="dropZone">
+        Cliquer ou glisser une image ici (PNG, JPG)
+        <input type="file" id="fileInput" hidden accept="image/*">
     </div>
 
-    <div class="container">
-        <div class="image-box">
-            <h3>Image Originale</h3>
-            <img id="originalImg" alt="Aperçu original">
+    <button id="upscaleBtn" style="display: none;">Améliorer la qualité</button>
+    <div id="loader">L'IA réfléchit... (cela peut prendre 10-30 secondes)</div>
+
+    <div class="result-container">
+        <div>
+            <p>Original :</p>
+            <img id="inputImg">
         </div>
-        <div class="image-box">
-            <h3>Résultat IA (Haute Résolution)</h3>
-            <img id="upscaledImg" alt="Image améliorée">
+        <div>
+            <p>Résultat IA :</p>
+            <img id="outputImg">
         </div>
     </div>
+</div>
 
-    <script>
-        const imageInput = document.getElementById('imageInput');
-        const upscaleBtn = document.getElementById('upscaleBtn');
-        const originalImg = document.getElementById('originalImg');
-        const upscaledImg = document.getElementById('upscaledImg');
-        const statusText = document.getElementById('status');
+<script>
+    // Initialisation de l'IA
+    const upscaler = new Upscaler();
+    
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const upscaleBtn = document.getElementById('upscaleBtn');
+    const inputImg = document.getElementById('inputImg');
+    const outputImg = document.getElementById('outputImg');
+    const loader = document.getElementById('loader');
 
-        let selectedFile = null;
+    // Gestion de l'upload
+    dropZone.onclick = () => fileInput.click();
+    
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                inputImg.src = event.target.result;
+                upscaleBtn.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
-        // Étape 1 : Afficher l'image sélectionnée par l'utilisateur
-        imageInput.addEventListener('change', function(event) {
-            selectedFile = event.target.files[0];
-            if (selectedFile) {
-                originalImg.src = URL.createObjectURL(selectedFile);
-                originalImg.style.display = 'block';
-                upscaleBtn.disabled = false; // On active le bouton
-                upscaledImg.style.display = 'none'; // On cache l'ancien résultat
-                statusText.innerText = "";
-            }
-        });
+    // Fonction principale d'amélioration
+    upscaleBtn.onclick = async () => {
+        upscaleBtn.disabled = true;
+        loader.style.display = 'block';
+        outputImg.src = '';
 
-        // Étape 2 : Envoyer l'image à l'IA quand on clique sur le bouton
-        upscaleBtn.addEventListener('click', async function() {
-            if (!selectedFile) return;
+        try {
+            // L'IA traite l'image
+            const upscaledImage = await upscaler.upscale(inputImg.src);
+            outputImg.src = upscaledImage;
+        } catch (err) {
+            alert("Erreur lors du traitement : " + err.message);
+        } finally {
+            upscaleBtn.disabled = false;
+            loader.style.display = 'none';
+        }
+    };
+</script>
 
-            statusText.innerText = "Traitement par l'IA en cours... Cela peut prendre quelques secondes.";
-            upscaleBtn.disabled = true;
-
-            const formData = new FormData();
-            formData.append('image', selectedFile);
-
-            try {
-                // APPEL À L'API (Exemple avec DeepAI)
-                // ATTENTION : Remplacez par votre propre clé API gratuite
-                const response = await fetch('https://api.deepai.org/api/torch-srgan', {
-                    method: 'POST',
-                    headers: {
-                        'api-key': 9db5fd1d-9e80-4fd4-b055-5ce90ea305b7
- 
-                    },
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (data.output_url) {
-                    upscaledImg.src = data.output_url;
-                    upscaledImg.style.display = 'block';
-                    statusText.innerText = "✨ Amélioration terminée avec succès !";
-                    statusText.style.color = "#27ae60";
-                } else {
-                    statusText.innerText = "Erreur : L'IA n'a pas pu traiter l'image.";
-                    statusText.style.color = "#c0392b";
-                }
-            } catch (error) {
-                console.error(error);
-                statusText.innerText = "Erreur de connexion. Vérifiez la clé API ou votre réseau.";
-                statusText.style.color = "#c0392b";
-            } finally {
-                upscaleBtn.disabled = false;
-            }
-        });
-    </script>
 </body>
 </html>
