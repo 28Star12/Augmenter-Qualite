@@ -40,16 +40,29 @@
 </div>
 
 <script>
-    let upscaler;
+    let upscaler = null;
 
-    // 1. Initialisation sécurisée de l'IA
-    try {
-        upscaler = new Upscaler();
-        document.getElementById('status').innerText = "✅ IA Prête";
-    } catch (e) {
-        document.getElementById('status').innerText = "❌ Erreur de chargement de l'IA";
-        console.error(e);
+    // Fonction pour forcer l'initialisation
+    async function initIA() {
+        const status = document.getElementById('status');
+        try {
+            // On vérifie si la bibliothèque est chargée dans la fenêtre
+            if (typeof Upscaler !== 'undefined') {
+                upscaler = new Upscaler();
+                status.innerText = "✅ IA Prête (GitHub Mode)";
+                status.style.color = "green";
+            } else {
+                status.innerText = "⏳ Chargement des composants... (Vérifiez votre connexion)";
+                // On réessaie dans 2 secondes si ce n'est pas prêt
+                setTimeout(initIA, 2000);
+            }
+        } catch (e) {
+            status.innerText = "❌ Erreur critique : " + e.message;
+        }
     }
+
+    // Lancer l'initialisation au chargement
+    window.addEventListener('load', initIA);
 
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
@@ -58,46 +71,42 @@
     const outputImg = document.getElementById('outputImg');
     const status = document.getElementById('status');
 
-    // 2. Gestion de l'ouverture du fichier (Indépendant de l'IA)
-    dropZone.addEventListener('click', () => {
-        fileInput.click();
-    });
+    dropZone.onclick = () => fileInput.click();
 
-    fileInput.addEventListener('change', (e) => {
+    fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
                 inputImg.src = event.target.result;
-                document.getElementById('labelOriginal').style.display = 'block';
                 upscaleBtn.style.display = 'inline-block';
-                outputImg.src = ''; // Efface le résultat précédent
-                status.innerText = "Image chargée. Prêt à améliorer !";
+                status.innerText = "Image chargée. Cliquez sur le bouton !";
             };
             reader.readAsDataURL(file);
         }
-    });
+    };
 
-    // 3. Traitement de l'image
     upscaleBtn.onclick = async () => {
-        if (!upscaler) return alert("L'IA n'est pas encore prête.");
+        if (!upscaler) {
+            alert("L'IA charge encore les modèles mathématiques. Attendez 5 secondes.");
+            return;
+        }
         
         upscaleBtn.disabled = true;
-        status.innerText = "⏳ Analyse en cours... (Patientez environ 10-20 sec)";
+        status.innerText = "⏳ Travail en cours... (Ne fermez pas la page)";
 
         try {
-            const upscaledImage = await upscaler.upscale(inputImg.src);
-            outputImg.src = upscaledImage;
-            document.getElementById('labelResult').style.display = 'block';
-            status.innerText = "✨ Amélioration terminée !";
+            // On utilise le modèle par défaut (x2)
+            const result = await upscaler.upscale(inputImg.src);
+            outputImg.src = result;
+            status.innerText = "✨ Terminé !";
         } catch (err) {
-            status.innerText = "❌ Erreur durant le traitement.";
+            status.innerText = "❌ Erreur de mémoire : l'image est peut-être trop grande.";
             console.error(err);
         } finally {
             upscaleBtn.disabled = false;
         }
     };
 </script>
-
 </body>
 </html>
